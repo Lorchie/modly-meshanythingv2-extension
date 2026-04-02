@@ -1,0 +1,28 @@
+# Virtual environment created by setup.py
+venv/
+
+# Vendored dependencies built by build_vendor.py
+# Commit vendor/ only if you want zero-install for end users
+vendor/
+
+# Model weights downloaded at runtime
+models/
+
+# Generated outputs
+outputs/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Claude Code session data
+.claude/

@@ -1,0 +1,89 @@
+{
+  "id": "meshanythingv2",
+  "name": "MeshAnythingV2",
+  "source": "https://github.com/lightningpixel/modly-meshanythingV2-extension",
+  "description": "Converts any raw 3D mesh into a clean, CAD-ready mesh using artist-like topology. Produces structured quads and triangles capped at 1600 faces. Requires ~8GB VRAM.",
+  "version": "1.0.0",
+  "author": "Lightning Pixel",
+  "generator_class": "MeshAnythingV2Generator",
+  "tags": ["mesh-to-mesh", "topology", "remesh", "cad", "3d-print"],
+  "nodes": [
+    {
+      "id": "generate",
+      "name": "MeshAnythingV2",
+      "input": "mesh",
+      "output": "mesh",
+      "hf_repo": "Yiwen-ntu/MeshAnythingV2",
+      "download_check": "config.json",
+      "params_schema": [
+        {
+          "id": "face_number",
+          "label": "Max Faces",
+          "type": "int",
+          "default": 800,
+          "min": 100,
+          "max": 1600,
+          "tooltip": "Target face count for the generated mesh. Hard model limit is 1600."
+        },
+        {
+          "id": "mc",
+          "label": "Marching Cubes",
+          "type": "bool",
+          "default": true,
+          "tooltip": "Pre-process the input mesh with Marching Cubes to make it watertight before sampling the point cloud."
+        },
+        {
+          "id": "mc_level",
+          "label": "MC Octree Depth",
+          "type": "int",
+          "default": 7,
+          "min": 6,
+          "max": 8,
+          "tooltip": "Octree depth for Marching Cubes. Higher = finer surface detail, slower processing."
+        },
+        {
+          "id": "no_pc_vertices",
+          "label": "Point Cloud Size",
+          "type": "int",
+          "default": 8192,
+          "min": 8192,
+          "max": 100000,
+          "tooltip": "Number of points sampled from the mesh to form the point cloud input to the model."
+        },
+        {
+          "id": "sampling",
+          "label": "Sampling",
+          "type": "bool",
+          "default": false,
+          "tooltip": "Enable stochastic sampling during inference. Disable for deterministic results."
+        },
+        {
+          "id": "seed",
+          "label": "Seed",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 10000000,
+          "tooltip": "Random seed for reproducibility."
+        }
+      ]
+    },
+    {
+      "id": "preprocess",
+      "name": "MeshAnythingV2 Preprocess",
+      "input": "mesh",
+      "output": "mesh",
+      "params_schema": [
+        {
+          "id": "mc_level",
+          "label": "MC Octree Depth",
+          "type": "int",
+          "default": 7,
+          "min": 6,
+          "max": 8,
+          "tooltip": "Octree depth for Marching Cubes watertight conversion. Higher = finer detail, slower."
+        }
+      ]
+    }
+  ]
+}

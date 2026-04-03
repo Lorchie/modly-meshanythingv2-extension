@@ -11,6 +11,7 @@
     {
       "id": "generate",
       "name": "MeshAnythingV2",
+      "description": "Converts a raw mesh into a clean, structured mesh.",
       "input": "mesh",
       "output": "mesh",
       "hf_repo": "Yiwen-ntu/MeshAnythingV2",
@@ -71,6 +72,7 @@
     {
       "id": "preprocess",
       "name": "MeshAnythingV2 Preprocess",
+      "description": "Runs Marching Cubes only — makes the mesh watertight without running the model.",
       "input": "mesh",
       "output": "mesh",
       "params_schema": [

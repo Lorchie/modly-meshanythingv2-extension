@@ -4,7 +4,7 @@
   "source": "https://github.com/lightningpixel/modly-meshanythingV2-extension",
   "description": "Converts any raw 3D mesh into a clean, CAD-ready mesh using artist-like topology. Produces structured quads and triangles capped at 1600 faces. Requires ~8GB VRAM.",
   "version": "1.0.0",
-  "author": "Lightning Pixel",
+  "author": "Lorchie",
   "type": "process",
   "tags": ["mesh-to-mesh", "topology", "remesh", "cad", "3d-print"],
   "nodes": [

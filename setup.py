@@ -26,6 +26,32 @@ def pip(venv: Path, *args: str) -> None:
     subprocess.run([str(pip_exe), *args], check=True)
 
 
+def install_torch(venv: Path, torch_pkgs: list, torch_index: str) -> None:
+    """
+    Install PyTorch with progressive fallback:
+      1. Pinned version from CUDA index
+      2. Latest available from CUDA index (unpinned)
+      3. Latest from default PyPI (CPU or whatever is available)
+    """
+    # Step 1 — pinned version, CUDA index
+    try:
+        pip(venv, "install", *torch_pkgs, "--index-url", torch_index)
+        return
+    except subprocess.CalledProcessError:
+        print(f"[setup] Pinned versions not found on {torch_index}, trying latest...")
+
+    # Step 2 — unpinned, CUDA index
+    unpinned = [pkg.split("==")[0].split(">=")[0] for pkg in torch_pkgs]
+    try:
+        pip(venv, "install", *unpinned, "--index-url", torch_index)
+        return
+    except subprocess.CalledProcessError:
+        print("[setup] CUDA index has no compatible wheel, falling back to default PyPI...")
+
+    # Step 3 — unpinned, default PyPI (CPU or any available build)
+    pip(venv, "install", *unpinned)
+
+
 def install_flash_attn(venv: Path) -> None:
     """
     Attempt to install flash-attn for faster attention.

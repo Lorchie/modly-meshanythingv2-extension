@@ -167,6 +167,16 @@ if __name__ == "__main__":
             int(args.get("cuda_version", 0)),
         )
     else:
-        print("Usage: python setup.py <python_exe> <ext_dir> <gpu_sm>")
-        print('   or: python setup.py \'{"python_exe":"...","ext_dir":"...","gpu_sm":86,"cuda_version":124}\'')
-        sys.exit(1)
+        # Read JSON from stdin (avoids CLI quoting issues on Windows)
+        raw = sys.stdin.read().strip()
+        if not raw:
+            print("Usage: python setup.py <python_exe> <ext_dir> <gpu_sm>")
+            print('   or: python setup.py \'{"python_exe":"...","ext_dir":"...","gpu_sm":86,"cuda_version":124}\'')
+            sys.exit(1)
+        args = json.loads(raw)
+        setup(
+            args["python_exe"],
+            Path(args["ext_dir"]),
+            int(args.get("gpu_sm", 86)),
+            int(args.get("cuda_version", 0)),
+        )

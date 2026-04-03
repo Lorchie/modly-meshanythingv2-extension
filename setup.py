@@ -192,7 +192,17 @@ def setup(python_exe: str, ext_dir: Path, gpu_sm: int, cuda_version: int = 0) ->
 # Entry point
 # ------------------------------------------------------------
 if __name__ == "__main__":
-    if len(sys.argv) == 2:
+    if len(sys.argv) >= 4:
+        # Format: python setup.py <python_exe> <ext_dir> <gpu_sm>
+        setup(
+            sys.argv[1],
+            Path(sys.argv[2]),
+            int(sys.argv[3]),
+            int(sys.argv[4]) if len(sys.argv) > 4 else 0,
+        )
+
+    elif len(sys.argv) == 2:
+        # Format JSON
         args = json.loads(sys.argv[1])
         setup(
             args["python_exe"],
@@ -200,5 +210,17 @@ if __name__ == "__main__":
             int(args.get("gpu_sm", 86)),
             int(args.get("cuda_version", 0)),
         )
+
     else:
-        raise RuntimeError("Invalid arguments")
+        # stdin fallback (Windows safe)
+        raw = sys.stdin.read().strip()
+        if not raw:
+            raise RuntimeError("No arguments provided")
+
+        args = json.loads(raw)
+        setup(
+            args["python_exe"],
+            Path(args["ext_dir"]),
+            int(args.get("gpu_sm", 86)),
+            int(args.get("cuda_version", 0)),
+        )

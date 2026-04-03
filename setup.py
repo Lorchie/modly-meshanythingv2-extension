@@ -32,7 +32,7 @@ def main(args):
     pip(
         venv,
         "install",
-        "torch==2.5.1",
+        "torch==2.11.0+cpu",
         "--index-url",
         "https://download.pytorch.org/whl/cpu"
     )

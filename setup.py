@@ -13,22 +13,21 @@ def pip(venv: Path, *args: str) -> None:
     run([str(exe), *args])
 
 def main(args):
-    python_exe = args["python_exe"]   # Python fourni par Modly (3.14)
+    python_exe = args["python_exe"]
     ext_dir    = Path(args["ext_dir"])
     venv       = ext_dir / "venv"
 
     print("[setup] Using Python:", python_exe)
     print("[setup] Extension dir:", ext_dir)
 
-    # Créer le venv si absent
+    # Create venv
     if not venv.exists():
         print("[setup] Creating virtual environment…")
         run([python_exe, "-m", "venv", str(venv)])
     else:
         print("[setup] Virtual environment already exists.")
 
-    # Installer PyTorch CPU (compatible Python 3.14)
-    print("[setup] Installing PyTorch CPU (Python 3.14 compatible)…")
+    # Install Torch CPU
     pip(
         venv,
         "install",
@@ -37,26 +36,26 @@ def main(args):
         "https://download.pytorch.org/whl/cpu"
     )
 
-    # Dépendances MeshAnythingV2
-    print("[setup] Installing core dependencies…")
+    # Core dependencies
     pip(
         venv,
         "install",
         "numpy",
+        "scipy",
+        "scikit-image",
+        "einops",
         "trimesh",
-        "pymeshlab",
+        "mesh2sdf",
         "huggingface_hub",
         "safetensors",
-        "einops",
-        "transformers>=4.46.0",
         "accelerate",
-        "mesh2sdf",
-        "scikit-image",
+        "transformers>=4.46.0"
     )
 
-    # MeshAnythingV2 depuis GitHub
-    print("[setup] Installing MeshAnythingV2 from GitHub…")
-    pip(venv, "install", "git+https://github.com/buaacyw/MeshAnythingV2.git")
+    # Clone MeshAnythingV2 repo
+    repo_dir = ext_dir / "MeshAnythingV2"
+    if not repo_dir.exists():
+        run(["git", "clone", "https://github.com/buaacyw/MeshAnythingV2.git", str(repo_dir)])
 
     print("[setup] Done.")
 

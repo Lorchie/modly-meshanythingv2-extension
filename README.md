@@ -1,56 +1,66 @@
-# MeshAnythingV2 — Modly Extension
+# MeshAnythingV2 – Modly Extension
 
-Turn any raw 3D mesh into a clean, structured mesh ready for CAD, 3D printing, or game engines — automatically.
+High‑quality **mesh reconstruction** and **remeshing** using the official **MeshAnythingV2** model.
 
----
+HuggingFace model:  
+👉 https://huggingface.co/Yiwen-ntu/meshanythingv2
 
-## What it does
-
-Image-to-3D models like Hunyuan3D, TripoSG or TRELLIS are great at capturing shape, but their output is messy: hundreds of thousands of tiny, unstructured triangles with no edge flow, holes, and self-intersections.
-
-**MeshAnythingV2 fixes that.** It reads your mesh, samples a point cloud from its surface, and generates a brand-new clean mesh with proper topology — the way a 3D artist would model it by hand. The output is capped at **1600 faces**, lightweight and export-ready.
+This extension converts noisy or irregular meshes into clean, CAD‑ready geometry using a transformer‑based 3D generator.
 
 ---
 
-## Where it fits in Modly
+## 🚀 Features
 
-**Image → [Hunyuan3D / TripoSG / TRELLIS] → raw mesh → [MeshAnythingV2] → clean mesh → CAD / 3D Print**
-
----
-
-## Requirements
-
-| | |
-|---|---|
-| GPU | NVIDIA CUDA, 8 GB VRAM minimum |
-| AMD / Apple Silicon / CPU | Not supported |
+- Mesh → clean reconstructed mesh  
+- Optional watertight reconstruction (marching cubes)  
+- Point‑cloud normalization  
+- Deterministic or sampling‑based generation  
+- CPU‑only compatible  
+- Two‑node Modly pipeline: `preprocess` → `generate`
 
 ---
 
-## Nodes
+## 🧩 Nodes & Parameters
 
-### MeshAnythingV2
-Full pipeline: takes your mesh, runs the model, returns a clean mesh.
+### **1. `preprocess`**
+Converts an input mesh into a normalized point cloud.  
+Useful before running the MeshAnythingV2 generator.
 
-| Parameter | Default | Range | Description |
-|---|---|---|---|
-| Max Faces | 800 | 100 – 1600 | Target face count. The model hard-caps at 1600. |
-| Marching Cubes | On | — | Makes the input watertight before processing. Recommended for most meshes. |
-| MC Octree Depth | 7 | 6 – 8 | Detail level for the watertight conversion. Higher = slower but finer. |
-| Point Cloud Size | 8192 | 8192 – 100000 | Points sampled from the surface. More points = better coverage of fine details. |
-| Sampling | Off | — | Adds randomness to the generation. Turn on to get variation across runs. |
-| Seed | 0 | 0 – 10000000 | Fixes the output for reproducibility. |
+mc_level
+- Resolution used for marching cubes
+- Higher = more accurate but slower
+- Used only when mc = true in the generate node
 
-### MeshAnythingV2 Preprocess
-Marching Cubes only — no model inference. Converts a non-watertight mesh into a clean watertight one. Useful to inspect or use the preprocessed geometry on its own.
 
-| Parameter | Default | Range | Description |
-|---|---|---|---|
-| MC Octree Depth | 7 | 6 – 8 | Detail level for the watertight conversion. |
+### **2. `generate`**
+Runs the MeshAnythingV2 model to reconstruct a clean mesh.
+
+face_number
+- Approximate target number of faces
+- MeshAnythingV2 does not strictly enforce this
+mc
+- Apply marching cubes before sampling the point cloud
+- Helps fix holes and non‑manifold geometry
+mc_level
+- Resolution for marching cubes (same as preprocess)
+no_pc_vertices
+- Number of sampled points from the mesh
+- 8192 recommended for stable results
+sampling
+- false → deterministic output
+- true → stochastic decoding (variations possible)
+seed
+- Controls randomness when sampling is enabled
+
+
+
+📝 License
+MeshAnythingV2 is released under the MIT License.
+This extension integrates the official implementation
 
 ---
 
-## Model
+🤝 Credits
+- MeshAnythingV2 by Yiwen‑ntu
+- Modly integration by Lorchie
 
-- **HuggingFace:** [Yiwen-ntu/MeshAnythingV2](https://huggingface.co/Yiwen-ntu/MeshAnythingV2)
-- **Paper & source:** [github.com/buaacyw/MeshAnythingV2](https://github.com/buaacyw/MeshAnythingV2)

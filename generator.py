@@ -1,56 +1,113 @@
 import sys
 import json
-import traceback
 from pathlib import Path
 
-def send(type_, data):
-    print(json.dumps({"type": type_, **data}), flush=True)
+import numpy as np
+import torch
+import trimesh
 
-def main():
-    try:
-        data = json.loads(sys.stdin.readline())
+EXT_DIR = Path(__file__).parent
+REPO_DIR = EXT_DIR / "MeshAnythingV2"
 
-        input_path = data["input"]["filePath"]
-        workspace  = Path(data["workspaceDir"])
+# Add repo to path
+sys.path.append(str(REPO_DIR))
 
-        send("log", {"message": f"Input: {input_path}"})
+# Import model + preprocess
+from MeshAnything.models.meshanything_v2 import MeshAnythingV2
+from mesh_to_pc import process_mesh_to_pc
 
-        import torch
-        import trimesh
-        from MeshAnything.models.meshanything_v2 import MeshAnythingV2
-        from mesh_to_pc import process_mesh_to_pc
 
-        send("log", {"message": f"torch={torch.__version__}"})
+_device = torch.device("cpu")
+_model = None
 
-        mesh = trimesh.load(input_path)
 
-        send("progress", {"percent": 20, "label": "Converting mesh to point cloud"})
-        pc, _ = process_mesh_to_pc([mesh])
-        pc = pc[0]
+def load_model():
+    global _model
+    if _model is not None:
+        return _model
 
-        send("progress", {"percent": 40, "label": "Loading model"})
-        model = MeshAnythingV2.from_pretrained("Yiwen-ntu/MeshAnythingV2")
+    print("[MeshAnythingV2] Loading model from HuggingFace…")
+    model = MeshAnythingV2.from_pretrained("Yiwen-ntu/meshanythingv2")
+    model.to(_device)
+    model.eval()
 
-        batch = torch.tensor(pc).unsqueeze(0)
+    _model = model
+    return model
 
-        send("progress", {"percent": 60, "label": "Running inference"})
-        with torch.no_grad():
-            out = model(batch)
 
-        verts = out[0].reshape(-1, 3).cpu().numpy()
-        faces = [list(range(i, i+3)) for i in range(0, len(verts), 3)]
+# -------------------------
+# PREPROCESS
+# -------------------------
+def preprocess_mesh(mesh_path, params, out_path):
+    mc_level = params.get("mc_level", 7)
 
-        out_mesh = trimesh.Trimesh(vertices=verts, faces=faces)
-        out_path = workspace / "result.glb"
+    mesh = trimesh.load(mesh_path)
+    pc_list, _ = process_mesh_to_pc([mesh], marching_cubes=True, mc_level=mc_level)
 
-        send("progress", {"percent": 90, "label": "Exporting GLB"})
-        out_mesh.export(out_path)
+    pts = pc_list[0][:, :3]
+    cloud = trimesh.points.PointCloud(pts)
+    cloud.export(out_path)
 
-        send("done", {"result": {"filePath": str(out_path)}})
+    return out_path
 
-    except Exception:
-        send("error", {"message": traceback.format_exc()})
-        sys.exit(1)
 
+# -------------------------
+# GENERATE (REMESH)
+# -------------------------
+def generate_mesh(mesh_path, params, out_path):
+    model = load_model()
+
+    sampling = params.get("sampling", False)
+    seed = params.get("seed", 0)
+    mc = params.get("mc", False)
+    mc_level = params.get("mc_level", 7)
+    no_pc_vertices = params.get("no_pc_vertices", 8192)
+
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+
+    mesh = trimesh.load(mesh_path)
+
+    pc_list, _ = process_mesh_to_pc(
+        [mesh],
+        marching_cubes=mc,
+        mc_level=mc_level,
+        sample_num=no_pc_vertices
+    )
+    pc = pc_list[0]
+
+    pc_tensor = torch.tensor(pc, dtype=torch.float32).unsqueeze(0).to(_device)
+
+    with torch.no_grad():
+        gen_mesh = model(pc_tensor, sampling=sampling)[0]  # (nf,3,3)
+
+    vertices = gen_mesh.reshape(-1, 3).cpu().numpy()
+    faces = np.arange(len(vertices)).reshape(-1, 3)
+
+    scene_mesh = trimesh.Trimesh(vertices=vertices, faces=faces)
+    scene_mesh.merge_vertices()
+    scene_mesh.remove_unreferenced_vertices()
+    scene_mesh.fix_normals()
+
+    scene_mesh.export(out_path)
+    return out_path
+
+
+# -------------------------
+# CLI ENTRYPOINT
+# -------------------------
 if __name__ == "__main__":
-    main()
+    if len(sys.argv) < 5:
+        raise SystemExit("Usage: generator.py <node_id> <input_mesh> <output_mesh> <params_json>")
+
+    node_id = sys.argv[1]
+    input_mesh = sys.argv[2]
+    output_mesh = sys.argv[3]
+    params = json.loads(sys.argv[4])
+
+    if node_id == "preprocess":
+        preprocess_mesh(input_mesh, params, output_mesh)
+    elif node_id == "generate":
+        generate_mesh(input_mesh, params, output_mesh)
+    else:
+        raise RuntimeError(f"Unknown node id: {node_id}")

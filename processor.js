@@ -18,7 +18,9 @@ module.exports = async function (input, params, context) {
 
   if (!fs.existsSync(py)) {
     throw new Error(
-      'Python environment not found. Please reinstall the extension to run setup.'
+      'Python environment not found. ' +
+      'Uninstall and reinstall the extension from Modly — ' +
+      'setup runs automatically during installation.'
     )
   }
 

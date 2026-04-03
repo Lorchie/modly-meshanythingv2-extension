@@ -17,6 +17,18 @@ import traceback
 import uuid
 from pathlib import Path
 
+# ── File logger (backup — written even if Modly drops JSON logs) ─────────────
+
+_LOG_FILE = Path(__file__).parent / 'generator.log'
+
+def _flog(message: str) -> None:
+    try:
+        ts = time.strftime('%H:%M:%S')
+        with open(_LOG_FILE, 'a', encoding='utf-8') as f:
+            f.write(f'[{ts}] {message}\n')
+    except Exception:
+        pass
+
 
 # ── Protocol helpers ────────────────────────────────────────────────────────
 
@@ -24,12 +36,15 @@ def _progress(percent: int, label: str = '') -> None:
     print(json.dumps({'type': 'progress', 'percent': percent, 'label': label}), flush=True)
 
 def _log(message: str) -> None:
+    _flog(message)
     print(json.dumps({'type': 'log', 'message': str(message)}), flush=True)
 
 def _done(result: dict) -> None:
+    _flog(f'DONE → {result}')
     print(json.dumps({'type': 'done', 'result': result}), flush=True)
 
 def _error(message: str) -> None:
+    _flog(f'ERROR → {message}')
     print(json.dumps({'type': 'error', 'message': str(message)}), flush=True)
 
 

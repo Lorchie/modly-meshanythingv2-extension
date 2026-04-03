@@ -2,57 +2,55 @@ const { spawn } = require("child_process");
 const path = require("path");
 const fs = require("fs");
 
-module.exports = {
-  async run({ node, inputs, params, context }) {
-    const extDir = context.extensionDir;
+module.exports = async function ({ node, inputs, params, context }) {
+  const extDir = context.extensionDir;
 
-    const venvPython =
-      process.platform === "win32"
-        ? path.join(extDir, "venv", "Scripts", "python.exe")
-        : path.join(extDir, "venv", "bin", "python");
+  const venvPython =
+    process.platform === "win32"
+      ? path.join(extDir, "venv", "Scripts", "python.exe")
+      : path.join(extDir, "venv", "bin", "python");
 
-    const generatorPath = path.join(extDir, "generator.py");
+  const generatorPath = path.join(extDir, "generator.py");
 
-    const inputMesh = inputs.mesh;
-    if (!inputMesh) throw new Error("No input mesh provided.");
+  const inputMesh = inputs.mesh;
+  if (!inputMesh) throw new Error("No input mesh provided.");
 
-    const outPath = path.join(
-      context.workDir,
-      `meshanythingv2_${node.id}_output.obj`
-    );
+  const outPath = path.join(
+    context.workDir,
+    `meshanythingv2_${node.id}_output.obj`
+  );
 
-    const args = [
-      generatorPath,
-      node.id,           // "preprocess" ou "generate"
-      inputMesh,
-      outPath,
-      JSON.stringify(params || {})
-    ];
+  const args = [
+    generatorPath,
+    node.id,
+    inputMesh,
+    outPath,
+    JSON.stringify(params || {})
+  ];
 
-    await new Promise((resolve, reject) => {
-      const proc = spawn(venvPython, args, {
-        cwd: extDir,
-        stdio: ["ignore", "pipe", "pipe"]
-      });
-
-      proc.stdout.on("data", (data) => {
-        context.log(`[meshanythingv2][stdout] ${data}`);
-      });
-
-      proc.stderr.on("data", (data) => {
-        context.log(`[meshanythingv2][stderr] ${data}`);
-      });
-
-      proc.on("close", (code) => {
-        if (code === 0) resolve();
-        else reject(new Error(`generator.py exited with code ${code}`));
-      });
+  await new Promise((resolve, reject) => {
+    const proc = spawn(venvPython, args, {
+      cwd: extDir,
+      stdio: ["ignore", "pipe", "pipe"]
     });
 
-    if (!fs.existsSync(outPath)) {
-      throw new Error("MeshAnythingV2 did not produce an output mesh.");
-    }
+    proc.stdout.on("data", (data) => {
+      context.log(`[meshanythingv2][stdout] ${data}`);
+    });
 
-    return { mesh: outPath };
+    proc.stderr.on("data", (data) => {
+      context.log(`[meshanythingv2][stderr] ${data}`);
+    });
+
+    proc.on("close", (code) => {
+      if (code === 0) resolve();
+      else reject(new Error(`generator.py exited with code ${code}`));
+    });
+  });
+
+  if (!fs.existsSync(outPath)) {
+    throw new Error("MeshAnythingV2 did not produce an output mesh.");
   }
+
+  return { mesh: outPath };
 };

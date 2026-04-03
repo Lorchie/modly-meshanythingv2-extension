@@ -2,7 +2,6 @@ import sys
 import json
 import subprocess
 import os
-import shutil
 from pathlib import Path
 
 def run(cmd):
@@ -14,7 +13,7 @@ def pip(venv: Path, *args: str) -> None:
     run([str(exe), *args])
 
 def main(args):
-    python_exe = args["python_exe"]   # Python fourni par Modly
+    python_exe = args["python_exe"]   # Python fourni par Modly (3.14)
     ext_dir    = Path(args["ext_dir"])
     venv       = ext_dir / "venv"
 
@@ -28,17 +27,17 @@ def main(args):
     else:
         print("[setup] Virtual environment already exists.")
 
-    # IMPORTANT : ne pas mettre à jour pip → Windows bloque
-    print("[setup] Installing PyTorch (CUDA 12.4)…")
+    # Installer PyTorch CPU (compatible Python 3.14)
+    print("[setup] Installing PyTorch CPU (Python 3.14 compatible)…")
     pip(
         venv,
         "install",
         "torch==2.5.1",
-        "torchvision==0.20.1",
         "--index-url",
-        "https://download.pytorch.org/whl/cu124",
+        "https://download.pytorch.org/whl/cpu"
     )
 
+    # Dépendances MeshAnythingV2
     print("[setup] Installing core dependencies…")
     pip(
         venv,
@@ -55,6 +54,7 @@ def main(args):
         "scikit-image",
     )
 
+    # MeshAnythingV2 depuis GitHub
     print("[setup] Installing MeshAnythingV2 from GitHub…")
     pip(venv, "install", "git+https://github.com/buaacyw/MeshAnythingV2.git")
 

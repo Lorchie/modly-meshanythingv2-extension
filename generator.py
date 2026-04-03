@@ -10,7 +10,11 @@ def send(type_, data):
 
 def main():
     try:
-        data = json.loads(sys.stdin.readline())
+        line = sys.stdin.readline()
+        if not line:
+            raise RuntimeError("No input received on stdin")
+
+        data = json.loads(line)
 
         input_path = data["input"]["filePath"]
         params = data["params"]
@@ -23,6 +27,7 @@ def main():
         from mesh_to_pc import process_mesh_to_pc
 
         send("log", {"message": f"torch={torch.__version__}"})
+        send("log", {"message": f"node={node}"})
 
         mesh = trimesh.load(input_path)
 
@@ -38,12 +43,12 @@ def main():
 
         verts = out[0].reshape(-1, 3).cpu().numpy()
         faces = list(range(len(verts)))
-        faces = [faces[i:i+3] for i in range(0, len(faces), 3)]
+        faces = [faces[i:i + 3] for i in range(0, len(faces), 3)]
 
-        mesh = trimesh.Trimesh(vertices=verts, faces=faces)
+        out_mesh = trimesh.Trimesh(vertices=verts, faces=faces)
 
         out_path = out_dir / "result.glb"
-        mesh.export(out_path)
+        out_mesh.export(out_path)
 
         send("done", {"result": {"filePath": str(out_path)}})
 

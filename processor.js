@@ -7,19 +7,15 @@ const fs   = require('fs')
 const EXT_DIR = __dirname
 const IS_WIN  = process.platform === 'win32'
 
-// ── File logger — works even before generator.py starts ──────────────────────
-
 const SETUP_LOG   = path.join(EXT_DIR, 'setup.log')
 const RUNTIME_LOG = path.join(EXT_DIR, 'runtime.log')
 
 function flog(file, message) {
   try {
-    const ts   = new Date().toISOString().slice(11, 19)
+    const ts = new Date().toISOString().slice(11, 19)
     fs.appendFileSync(file, `[${ts}] ${message}\n`, 'utf8')
   } catch {}
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
 
 function pythonExe() {
   return IS_WIN
@@ -37,13 +33,16 @@ function findSystemPython() {
     if (!r.error && r.status === 0) {
       const ver = (r.stdout || r.stderr || '').toString().trim()
       flog(SETUP_LOG, `Found Python: ${cmd} → ${ver}`)
-      return cmd
+
+      // On force une version compatible PyTorch
+      if (ver.includes('3.10') || ver.includes('3.11') || ver.includes('3.12')) {
+        return cmd
+      }
     }
   }
 
   throw new Error(
-    'Python 3.10+ is required but was not found on PATH. ' +
-    'Please install Python and try again.'
+    'Python 3.10+ compatible (3.10/3.11/3.12) est requis mais introuvable dans le PATH.'
   )
 }
 
@@ -52,8 +51,8 @@ function runSetup(context) {
   flog(SETUP_LOG, `EXT_DIR: ${EXT_DIR}`)
   flog(SETUP_LOG, `pythonExe target: ${pythonExe()}`)
 
-  context.progress(0, 'First run: setting up Python environment (this may take several minutes)...')
-  context.log('Creating venv and installing dependencies...')
+  context.progress(0, 'Premier lancement : préparation de l’environnement Python (quelques minutes)...')
+  context.log('Création du venv et installation des dépendances...')
 
   let sysPy
   try {
@@ -64,12 +63,13 @@ function runSetup(context) {
   }
 
   const setupScript = path.join(EXT_DIR, 'setup.py')
-  const args        = JSON.stringify({ python_exe: sysPy, ext_dir: EXT_DIR, gpu_sm: 0 })
+  const argsObj     = { python_exe: sysPy, ext_dir: EXT_DIR }
+  const argsJson    = JSON.stringify(argsObj)
 
-  flog(SETUP_LOG, `Using Python: ${sysPy}`)
+  flog(SETUP_LOG, `Using system Python: ${sysPy}`)
   flog(SETUP_LOG, `setup.py: ${setupScript}`)
-  flog(SETUP_LOG, `args: ${args}`)
-  context.log(`Using Python: ${sysPy}`)
+  flog(SETUP_LOG, `args: ${argsJson}`)
+  context.log(`Using system Python: ${sysPy}`)
 
   return new Promise((resolve, reject) => {
     flog(SETUP_LOG, 'Spawning setup.py...')
@@ -79,7 +79,7 @@ function runSetup(context) {
       stdio: ['pipe', 'pipe', 'pipe'],
     })
 
-    child.stdin.write(args)
+    child.stdin.write(argsJson)
     child.stdin.end()
 
     child.stdout.on('data', chunk => {
@@ -131,6 +131,7 @@ module.exports = async function (input, params, context) {
     const child = spawn(py, [script], {
       cwd:   EXT_DIR,
       stdio: ['pipe', 'pipe', 'pipe'],
+      env:   { ...process.env, PYTHONPATH: EXT_DIR },
     })
 
     child.stdin.write(
@@ -158,8 +159,8 @@ module.exports = async function (input, params, context) {
           const msg = JSON.parse(line)
           if      (msg.type === 'progress') context.progress(msg.percent, msg.label ?? '')
           else if (msg.type === 'log')      { flog(RUNTIME_LOG, msg.message); context.log(msg.message) }
-          else if (msg.type === 'done')   { flog(RUNTIME_LOG, `DONE: ${JSON.stringify(msg.result)}`); resolved = true; resolve(msg.result) }
-          else if (msg.type === 'error')  { flog(RUNTIME_LOG, `ERROR: ${msg.message}`); resolved = true; reject(new Error(msg.message)) }
+          else if (msg.type === 'done')     { flog(RUNTIME_LOG, `DONE: ${JSON.stringify(msg.result)}`); resolved = true; resolve(msg.result) }
+          else if (msg.type === 'error')    { flog(RUNTIME_LOG, `ERROR: ${msg.message}`); resolved = true; reject(new Error(msg.message)) }
         } catch {
           flog(RUNTIME_LOG, `[raw] ${line}`)
           context.log(`[raw] ${line}`)

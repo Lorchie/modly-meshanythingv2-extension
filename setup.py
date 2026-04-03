@@ -16,19 +16,24 @@ def pip(venv: Path, *args):
     subprocess.run([str(exe), *args], check=True)
 
 
-def install_torch(venv, pkgs, index):
+def install_torch(venv: Path):
+    # Version robuste, CPU-only (fonctionne partout)
+    pkgs = ["torch==2.5.1", "torchvision==0.20.1"]
+    index = "https://download.pytorch.org/whl/cpu"
+
     try:
         pip(venv, "install", *pkgs, "--index-url", index)
-    except:
-        pip(venv, "install", *(p.split("==")[0] for p in pkgs))
+    except Exception:
+        # fallback sans version exacte si jamais
+        pip(venv, "install", "torch", "torchvision")
 
 
-def install_meshanything(venv):
+def install_meshanything(venv: Path):
     py = venv / ("Scripts/python.exe" if platform.system() == "Windows" else "bin/python")
 
     site = subprocess.check_output(
         [str(py), "-c", "import site; print(site.getsitepackages()[0])"],
-        text=True
+        text=True,
     ).strip()
 
     print("[setup] Download MeshAnything...")
@@ -50,11 +55,12 @@ def install_meshanything(venv):
         )
 
 
-def setup(python_exe, ext_dir, gpu_sm, cuda_version=0):
+def setup(python_exe: str, ext_dir: str):
     ext_dir = Path(ext_dir)
     venv = ext_dir / "venv"
 
-    print("[setup] Using Modly Python:", python_exe)
+    print("[setup] Using system Python:", python_exe)
+    print("[setup] Extension dir:", ext_dir)
 
     if venv.exists():
         shutil.rmtree(venv)
@@ -63,19 +69,10 @@ def setup(python_exe, ext_dir, gpu_sm, cuda_version=0):
 
     pip(venv, "install", "--upgrade", "pip", "setuptools", "wheel")
 
-    # torch
-    if gpu_sm >= 100 or cuda_version >= 128:
-        pkgs = ["torch==2.7.0", "torchvision==0.22.0"]
-        idx = "https://download.pytorch.org/whl/cu128"
-    elif gpu_sm >= 70:
-        pkgs = ["torch==2.6.0", "torchvision==0.21.0"]
-        idx = "https://download.pytorch.org/whl/cu124"
-    else:
-        pkgs = ["torch==2.5.1", "torchvision==0.20.1"]
-        idx = "https://download.pytorch.org/whl/cu118"
+    print("[setup] Installing torch...")
+    install_torch(venv)
 
-    install_torch(venv, pkgs, idx)
-
+    print("[setup] Installing Python deps...")
     pip(
         venv,
         "install",
@@ -91,17 +88,20 @@ def setup(python_exe, ext_dir, gpu_sm, cuda_version=0):
         "scikit-image",
     )
 
+    print("[setup] Installing MeshAnythingV2 code...")
     install_meshanything(venv)
 
     print("[setup] Done")
 
 
 if __name__ == "__main__":
-    if len(sys.argv) == 2:
-        args = json.loads(sys.argv[1])
-        setup(
-            args["python_exe"],
-            args["ext_dir"],
-            args.get("gpu_sm", 86),
-            args.get("cuda_version", 0),
-        )
+    # On lit le JSON depuis stdin (conforme à index.js)
+    raw = sys.stdin.read().strip()
+    if not raw:
+        raise RuntimeError("No JSON arguments received on stdin")
+
+    args = json.loads(raw)
+    setup(
+        args["python_exe"],
+        args["ext_dir"],
+    )

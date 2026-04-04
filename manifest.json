@@ -6,6 +6,7 @@
   "version": "1.0.0",
   "author": "Lorchie",
   "type": "process",
+  "processor": "processor.js",
   "tags": ["mesh-to-mesh", "topology", "remesh"],
   "nodes": [
     {

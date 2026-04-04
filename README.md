@@ -61,6 +61,6 @@ This extension integrates the official implementation
 ---
 
 🤝 Credits
-- MeshAnythingV2 by Yiwen‑ntu
-- Modly integration by Lorchie
+- MeshAnythingV2 by [Buaacyw](https://github.com/buaacyw)
+- Modly integration by [Lightning Pixel](https://github.com/lightningpixel)
 

@@ -3,7 +3,14 @@ const path = require("path");
 const fs = require("fs");
 
 module.exports = async function ({ node, inputs, params, context }) {
+  if (!context) {
+    throw new Error("Context object is missing. Modly did not pass context.");
+  }
+
   const extDir = context.extensionDir;
+  if (!extDir) {
+    throw new Error("context.extensionDir is undefined.");
+  }
 
   const venvPython =
     process.platform === "win32"

@@ -5,7 +5,8 @@
   "description": "Converts any raw 3D mesh into a clean, CAD-ready mesh.",
   "version": "1.0.0",
   "author": "Lorchie",
-  "type": "process",
+  "type": "vendor",
+  "vendor": "build_vendor.py",
   "processor": "processor.js",
   "tags": ["mesh-to-mesh", "topology", "remesh"],
   "nodes": [

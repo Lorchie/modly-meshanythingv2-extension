@@ -1,113 +1,94 @@
-import sys
-import json
-from pathlib import Path
+import os
+import shutil
+from typing import Dict, Any
 
-import numpy as np
-import torch
-import trimesh
-
-EXT_DIR = Path(__file__).parent
-REPO_DIR = EXT_DIR / "MeshAnythingV2"
-
-# Add repo to path
-sys.path.append(str(REPO_DIR))
-
-# Import model + preprocess
-from MeshAnything.models.meshanything_v2 import MeshAnythingV2
-from mesh_to_pc import process_mesh_to_pc
+# Import du pipeline MeshAnythingV2 (repo officiel buaacyw)
+from meshanythingv2.pipeline import MeshAnythingV2Pipeline
 
 
-_device = torch.device("cpu")
-_model = None
+class MeshAnythingV2Generator:
+    def __init__(self):
+        """
+        Chargement du pipeline MeshAnythingV2.
+        Modly utilise le venv global : Documents/Modly/dependencies/venv
+        Donc toutes les dépendances doivent être installées dedans.
+        """
+        self.pipeline = MeshAnythingV2Pipeline(
+            device="cpu"  # tu peux mettre "cuda" si tu veux
+        )
 
+    def _preprocess_mesh(self, input_mesh: str, mc_level: int, work_dir: str) -> str:
+        output_mesh = os.path.join(work_dir, "preprocessed.obj")
 
-def load_model():
-    global _model
-    if _model is not None:
-        return _model
+        self.pipeline.preprocess(
+            input_mesh=input_mesh,
+            output_mesh=output_mesh,
+            mc_level=mc_level
+        )
 
-    print("[MeshAnythingV2] Loading model from HuggingFace…")
-    model = MeshAnythingV2.from_pretrained("Yiwen-ntu/meshanythingv2")
-    model.to(_device)
-    model.eval()
+        return output_mesh
 
-    _model = model
-    return model
+    def _remesh_mesh(
+        self,
+        input_mesh: str,
+        face_number: int,
+        mc: bool,
+        mc_level: int,
+        no_pc_vertices: int,
+        sampling: bool,
+        seed: int,
+        work_dir: str,
+    ) -> str:
 
+        output_mesh = os.path.join(work_dir, "remeshed.obj")
 
-# -------------------------
-# PREPROCESS
-# -------------------------
-def preprocess_mesh(mesh_path, params, out_path):
-    mc_level = params.get("mc_level", 7)
+        self.pipeline.remesh(
+            input_mesh=input_mesh,
+            output_mesh=output_mesh,
+            face_number=face_number,
+            mc=mc,
+            mc_level=mc_level,
+            no_pc_vertices=no_pc_vertices,
+            sampling=sampling,
+            seed=seed
+        )
 
-    mesh = trimesh.load(mesh_path)
-    pc_list, _ = process_mesh_to_pc([mesh], marching_cubes=True, mc_level=mc_level)
+        return output_mesh
 
-    pts = pc_list[0][:, :3]
-    cloud = trimesh.points.PointCloud(pts)
-    cloud.export(out_path)
+    def generate(
+        self,
+        node_id: str,
+        inputs: Dict[str, Any],
+        params: Dict[str, Any],
+        work_dir: str,
+    ) -> Dict[str, Any]:
 
-    return out_path
+        os.makedirs(work_dir, exist_ok=True)
 
+        input_mesh = inputs.get("mesh")
+        if not input_mesh or not os.path.exists(input_mesh):
+            raise ValueError(f"Input mesh not found: {input_mesh}")
 
-# -------------------------
-# GENERATE (REMESH)
-# -------------------------
-def generate_mesh(mesh_path, params, out_path):
-    model = load_model()
+        if node_id == "preprocess":
+            output_mesh = self._preprocess_mesh(
+                input_mesh=input_mesh,
+                mc_level=int(params.get("mc_level", 7)),
+                work_dir=work_dir
+            )
 
-    sampling = params.get("sampling", False)
-    seed = params.get("seed", 0)
-    mc = params.get("mc", False)
-    mc_level = params.get("mc_level", 7)
-    no_pc_vertices = params.get("no_pc_vertices", 8192)
+        elif node_id == "generate":
+            output_mesh = self._remesh_mesh(
+                input_mesh=input_mesh,
+                face_number=int(params.get("face_number", 800)),
+                mc=bool(params.get("mc", True)),
+                mc_level=int(params.get("mc_level", 7)),
+                no_pc_vertices=int(params.get("no_pc_vertices", 8192)),
+                sampling=bool(params.get("sampling", False)),
+                seed=int(params.get("seed", 0)),
+                work_dir=work_dir
+            )
 
-    torch.manual_seed(seed)
-    np.random.seed(seed)
+        else:
+            raise ValueError(f"Unknown node_id: {node_id}")
 
-    mesh = trimesh.load(mesh_path)
-
-    pc_list, _ = process_mesh_to_pc(
-        [mesh],
-        marching_cubes=mc,
-        mc_level=mc_level,
-        sample_num=no_pc_vertices
-    )
-    pc = pc_list[0]
-
-    pc_tensor = torch.tensor(pc, dtype=torch.float32).unsqueeze(0).to(_device)
-
-    with torch.no_grad():
-        gen_mesh = model(pc_tensor, sampling=sampling)[0]  # (nf,3,3)
-
-    vertices = gen_mesh.reshape(-1, 3).cpu().numpy()
-    faces = np.arange(len(vertices)).reshape(-1, 3)
-
-    scene_mesh = trimesh.Trimesh(vertices=vertices, faces=faces)
-    scene_mesh.merge_vertices()
-    scene_mesh.remove_unreferenced_vertices()
-    scene_mesh.fix_normals()
-
-    scene_mesh.export(out_path)
-    return out_path
-
-
-# -------------------------
-# CLI ENTRYPOINT
-# -------------------------
-if __name__ == "__main__":
-    if len(sys.argv) < 5:
-        raise SystemExit("Usage: generator.py <node_id> <input_mesh> <output_mesh> <params_json>")
-
-    node_id = sys.argv[1]
-    input_mesh = sys.argv[2]
-    output_mesh = sys.argv[3]
-    params = json.loads(sys.argv[4])
-
-    if node_id == "preprocess":
-        preprocess_mesh(input_mesh, params, output_mesh)
-    elif node_id == "generate":
-        generate_mesh(input_mesh, params, output_mesh)
-    else:
-        raise RuntimeError(f"Unknown node id: {node_id}")
+        return {"mesh": output_mesh}

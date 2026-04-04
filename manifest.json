@@ -1,13 +1,11 @@
 {
   "id": "meshanythingv2",
   "name": "MeshAnythingV2",
-  "source": "https://github.com/lightningpixel/modly-meshanythingV2-extension",
-  "description": "Converts any raw 3D mesh into a clean, CAD-ready mesh.",
+  "source": "https://github.com/lightningpixel/modly-meshanythingv2-extension",
+  "description": "Converts any raw 3D mesh into a clean, CAD-ready mesh using MeshAnythingV2.",
   "version": "1.0.0",
   "author": "Lorchie",
-  "type": "vendor",
-  "vendor": "build_vendor.py",
-  "processor": "processor.js",
+  "generator_class": "MeshAnythingV2Generator",
   "tags": ["mesh-to-mesh", "topology", "remesh"],
   "nodes": [
     {
